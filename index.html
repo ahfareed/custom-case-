@@ -3,79 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3D Clamshell Case</title>
+  <title>3D Clamshell Case Viewer</title>
   <style>
     body {
       margin: 0;
-      font-family: sans-serif;
-      background-color: white;
+      overflow: hidden;
+      background: #fff;
     }
     canvas {
       display: block;
-      width: 100%;
-      height: 100vh;
     }
   </style>
 </head>
 <body>
-  <!-- Import Three.js via script tags -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/controls/OrbitControls.js"></script>
 
-  <script>
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xffffff);
+<script type="module">
+  import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+  import { OrbitControls } from 'https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js';
+  import { GLTFLoader } from 'https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
 
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(0, 2, 5);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xffffff);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 2, 5);
 
-    // Ensure OrbitControls is loaded correctly
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambientLight);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(5, 10, 7.5);
-    scene.add(dirLight);
+  const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+  light.position.set(0, 20, 0);
+  scene.add(light);
 
-    // Load GLB model
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-      'https://raw.githubusercontent.com/ahfareed/custom-case-/main/case.glb',
-      function (gltf) {
-        const model = gltf.scene;
-        model.scale.set(1, 1, 1); // Adjust scale
-        model.position.set(0, 0, 0); // Position in the scene
-        scene.add(model);
-        console.log("Model loaded successfully!");
-      },
-      undefined,
-      function (error) {
-        console.error('Error loading model:', error);
-      }
-    );
-
-    // Handle resizing
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    // Animation loop
-    function animate() {
-      requestAnimationFrame(animate);
-      controls.update(); // This is important for OrbitControls
-      renderer.render(scene, camera);
+  const loader = new GLTFLoader();
+  loader.load(
+    'https://raw.githubusercontent.com/ahfareed/custom-case-/main/case.glb',
+    (gltf) => {
+      const model = gltf.scene;
+      model.scale.set(1, 1, 1);
+      scene.add(model);
+    },
+    undefined,
+    (error) => {
+      console.error('Error loading model:', error);
     }
+  );
 
-    animate();
-  </script>
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  const animate = () => {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  };
+
+  animate();
+</script>
+
 </body>
 </html>
+
