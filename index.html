@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Model: Glasses Case</title>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+      }
+      model-viewer {
+        width: 100%;
+        height: 500px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>My 3D Glasses Case</h1>
+    
+    <!-- 3D Model Viewer -->
+    <model-viewer
+      src="case.glb"
+      alt="3D Glasses Case"
+      auto-rotate
+      camera-controls
+    ></model-viewer>
+
+  </body>
+</html>
