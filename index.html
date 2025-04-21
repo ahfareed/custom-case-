@@ -34,7 +34,7 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // OrbitControls needs to be explicitly instantiated after it's loaded
+    // Ensure OrbitControls is loaded correctly
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
@@ -79,4 +79,3 @@
   </script>
 </body>
 </html>
-
