@@ -34,114 +34,58 @@
   <input type="color" id="outerColor" value="#444444" title="Outer Color" />
   <input type="color" id="innerColor" value="#ddcccc" title="Inner Color" />
 
+  <!-- Import Three.js and GLTFLoader -->
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
     import { GLTFLoader } from 'https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xffffff);
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 2, 5);
+
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 1));
+    const controls = new OrbitControls(camera, renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
     const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(5, 5, 5).normalize();
+    dirLight.position.set(5, 10, 7.5);
     scene.add(dirLight);
 
+    // Load GLB model
     const loader = new GLTFLoader();
-    let model;
-    const modelURL = 'https://raw.githubusercontent.com/ahfareed/custom-case-/main/case.glb';
-
     loader.load(
-      modelURL,
-      (gltf) => {
-        model = gltf.scene;
+      'https://raw.githubusercontent.com/ahfareed/custom-case-/main/case.glb',
+      function (gltf) {
+        const model = gltf.scene;
+        model.scale.set(1, 1, 1);
+        model.position.set(0, 0, 0);
         scene.add(model);
-        model.rotation.y = Math.PI; // flip around for a better starting angle
-        model.position.y = -1;
-
-        camera.position.set(0, 1, 5);
-        camera.lookAt(model.position);
       },
       undefined,
-      (error) => {
-        console.error('Error loading model:', error);
+      function (error) {
+        console.error('An error happened loading the model:', error);
       }
     );
 
-    // Mouse controls for rotating the model
-    let isMouseDown = false;
-    let previousMousePosition = { x: 0, y: 0 };
-
-    renderer.domElement.addEventListener('mousedown', (event) => {
-      isMouseDown = true;
-      previousMousePosition = { x: event.clientX, y: event.clientY };
+    // Handle resizing
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    renderer.domElement.addEventListener('mouseup', () => {
-      isMouseDown = false;
-    });
-
-    renderer.domElement.addEventListener('mousemove', (event) => {
-      if (!isMouseDown || !model) return;
-
-      const deltaX = event.clientX - previousMousePosition.x;
-      const deltaY = event.clientY - previousMousePosition.y;
-
-      model.rotation.y += deltaX * 0.005;
-      model.rotation.x += deltaY * 0.005;
-
-      previousMousePosition = { x: event.clientX, y: event.clientY };
-    });
-
-    // Color picker (basic version for now — applies to whole model)
-    function updateColors() {
-      const outerColor = new THREE.Color(document.getElementById("outerColor").value);
-      if (model) {
-        model.traverse((child) => {
-          if (child.isMesh) {
-            child.material.color.set(outerColor);
-          }
-        });
-      }
-    }
-
-    document.getElementById('outerColor').addEventListener('input', updateColors);
-
-    // Logo overlay (for future texturing)
-    document.getElementById('logoUpload').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file || !model) return;
-
-      const reader = new FileReader();
-      reader.onload = function (event) {
-        const image = new Image();
-        image.onload = function () {
-          const texture = new THREE.Texture(image);
-          texture.needsUpdate = true;
-
-          model.traverse((child) => {
-            if (child.isMesh) {
-              child.material.map = texture;
-              child.material.needsUpdate = true;
-            }
-          });
-        };
-        image.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-
-    // Placeholder lid toggle (add real animation later if model supports it)
-    document.getElementById('toggleLid').addEventListener('click', () => {
-      alert("Lid toggle clicked — add animation if supported in model.");
-    });
-
+    // Animation loop
     function animate() {
       requestAnimationFrame(animate);
+      controls.update();
       renderer.render(scene, camera);
     }
 
@@ -149,4 +93,5 @@
   </script>
 </body>
 </html>
+
 
