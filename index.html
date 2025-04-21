@@ -1,47 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Glasses Case</title>
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@1.9.1/dist/model-viewer.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>3D Clamshell Case</title>
   <style>
     body {
       margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      font-family: sans-serif;
+      background-color: white;
+    }
+    canvas {
+      display: block;
+      width: 100%;
       height: 100vh;
-      background-color: #f0f0f0;
     }
-
-    model-viewer {
-      width: 80%;
-      height: 80%;
-      cursor: pointer; /* Changes the cursor to a pointer when hovering over the model */
+    button, input[type="file"], input[type="color"] {
+      position: absolute;
+      left: 20px;
+      padding: 10px;
+      font-size: 14px;
+      z-index: 100;
     }
+    #toggleLid { top: 20px; }
+    #logoUpload { top: 60px; }
+    #outerColor { top: 100px; }
+    #innerColor { top: 140px; }
   </style>
 </head>
 <body>
+  <button id="toggleLid">Toggle Lid</button>
+  <input type="file" id="logoUpload" accept="image/*" />
+  <input type="color" id="outerColor" value="#444444" title="Outer Color" />
+  <input type="color" id="innerColor" value="#ddcccc" title="Inner Color" />
 
-<model-viewer 
-  id="case-model" 
-  src="case.glb" 
-  alt="3D Glasses Case" 
-  auto-rotate 
-  camera-controls 
-  ar 
-  animation-name="OpenLid"  <!-- This assumes you have an animation named "OpenLid" -->
-  autoplay
-  on-click="openCase()">
-</model-viewer>
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+    import { GLTFLoader } from 'https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
 
-<script>
-  function openCase() {
-    const model = document.getElementById('case-model');
-    model.play();  // Starts the animation on click
-  }
-</script>
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff);
 
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 5, 5).normalize();
+    scene.add(dirLight);
+
+    // Replace this with the actual URL to your uploaded 3D model on GitHub
+    const modelURL = https://raw.githubusercontent.com/ahfareed/custom-case-/main/case.glb;
+ // Update this with your model URL
+
+    let loadedModel;
+
+    // Load the 3D model using GLTFLoader
+    const loader = new GLTFLoader();
+    loader.load(modelURL, (gltf) => {
+      loadedModel = gltf.scene;
+      loadedModel.scale.set(1, 1, 1);  // Adjust scale as necessary
+      loadedModel.position.set(0, 0, 0); // Adjust position as necessary
+      scene.add(loadedModel);
+    });
+
+    // Animation for lid toggle and model movement
+    let lidOpen = false;
+    const ANIMATION_SPEED = 0.1;
+    const MAX_ROTATION = Math.PI / 2;
+
+    document.getElementById('toggleLid').addEventListener('click', () => {
+      lidOpen = !lidOpen;
+    });
+
+    // Logo upload handler (optional)
+    let logoTexture;
+    document.getElementById('logoUpload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        const image = new Image();
+        image.onload = function () {
+          logoTexture = new THREE.Texture(image);
+          logoTexture.needsUpdate = true;
+          // You can apply the logo to a specific material of your model here
+        };
+        image.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (loadedModel) {
+        const target = lidOpen ? -MAX_ROTATION : 0;
+        loadedModel.rotation.x += (target - loadedModel.rotation.x) * ANIMATION_SPEED;
+      }
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
 </body>
 </html>
+
