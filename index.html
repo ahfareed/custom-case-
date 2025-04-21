@@ -42,7 +42,7 @@
     scene.background = new THREE.Color(0xffffff);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
@@ -51,32 +51,60 @@
     dirLight.position.set(5, 5, 5).normalize();
     scene.add(dirLight);
 
-    // Replace this with the actual URL to your uploaded 3D model on GitHub
-    const modelURL = https://raw.githubusercontent.com/ahfareed/custom-case-/main/case.glb;
- // Update this with your model URL
-
-    let loadedModel;
-
-    // Load the 3D model using GLTFLoader
-    const loader = new GLTFLoader();
-    loader.load(modelURL, (gltf) => {
-      loadedModel = gltf.scene;
-      loadedModel.scale.set(1, 1, 1);  // Adjust scale as necessary
-      loadedModel.position.set(0, 0, 0); // Adjust position as necessary
-      scene.add(loadedModel);
-    });
-
-    // Animation for lid toggle and model movement
+    let lid, base;
     let lidOpen = false;
     const ANIMATION_SPEED = 0.1;
     const MAX_ROTATION = Math.PI / 2;
+
+    let outerColor = 0x444444;
+    let innerColor = 0xddcccc;
+    let logoTexture;
+
+    const caseGroup = new THREE.Group();
+    scene.add(caseGroup);
+
+    const loader = new GLTFLoader();
+    loader.load(
+      'https://raw.githubusercontent.com/ahfareed/custom-case-/main/case.glb',
+      (gltf) => {
+        const model = gltf.scene;
+        model.traverse((child) => {
+          if (child.isMesh) {
+            child.material = new THREE.MeshStandardMaterial({ color: outerColor });
+          }
+        });
+
+        base = model.getObjectByName("Base");
+        lid = model.getObjectByName("Lid");
+
+        if (!base || !lid) {
+          alert("Could not find objects named 'Base' and 'Lid' in your model.");
+          return;
+        }
+
+        // Set hinge pivot for lid
+        const lidPivot = new THREE.Object3D();
+        lidPivot.position.copy(lid.position);
+        lidPivot.add(lid);
+        caseGroup.add(base);
+        caseGroup.add(lidPivot);
+
+        lid.userData.pivot = lidPivot;
+
+        // Set initial camera
+        camera.position.set(0, 2, 5);
+        camera.lookAt(0, 0, 0);
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading model:', error);
+      }
+    );
 
     document.getElementById('toggleLid').addEventListener('click', () => {
       lidOpen = !lidOpen;
     });
 
-    // Logo upload handler (optional)
-    let logoTexture;
     document.getElementById('logoUpload').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -86,19 +114,67 @@
         image.onload = function () {
           logoTexture = new THREE.Texture(image);
           logoTexture.needsUpdate = true;
-          // You can apply the logo to a specific material of your model here
+          if (lid) {
+            lid.material.map = logoTexture;
+            lid.material.needsUpdate = true;
+          }
         };
         image.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
 
+    const updateColors = () => {
+      outerColor = new THREE.Color(document.getElementById("outerColor").value).getHex();
+      innerColor = new THREE.Color(document.getElementById("innerColor").value).getHex();
+
+      if (base) {
+        base.material.color.setHex(outerColor);
+        base.material.needsUpdate = true;
+      }
+
+      if (lid) {
+        if (!logoTexture) {
+          lid.material.color.setHex(innerColor);
+        }
+        lid.material.needsUpdate = true;
+      }
+    };
+
+    document.getElementById('outerColor').addEventListener('input', updateColors);
+    document.getElementById('innerColor').addEventListener('input', updateColors);
+
+    // Mouse-based rotation
+    let isMouseDown = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    renderer.domElement.addEventListener('mousedown', (event) => {
+      isMouseDown = true;
+      previousMousePosition = { x: event.clientX, y: event.clientY };
+    });
+
+    renderer.domElement.addEventListener('mouseup', () => {
+      isMouseDown = false;
+    });
+
+    renderer.domElement.addEventListener('mousemove', (event) => {
+      if (!isMouseDown) return;
+      const deltaX = event.clientX - previousMousePosition.x;
+      const deltaY = event.clientY - previousMousePosition.y;
+      caseGroup.rotation.y += deltaX * 0.005;
+      caseGroup.rotation.x += deltaY * 0.005;
+      previousMousePosition = { x: event.clientX, y: event.clientY };
+    });
+
     function animate() {
       requestAnimationFrame(animate);
-      if (loadedModel) {
-        const target = lidOpen ? -MAX_ROTATION : 0;
-        loadedModel.rotation.x += (target - loadedModel.rotation.x) * ANIMATION_SPEED;
+
+      if (lid && lid.userData.pivot) {
+        const pivot = lid.userData.pivot;
+        const targetRotation = lidOpen ? -MAX_ROTATION : 0;
+        pivot.rotation.x += (targetRotation - pivot.rotation.x) * ANIMATION_SPEED;
       }
+
       renderer.render(scene, camera);
     }
 
