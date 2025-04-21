@@ -3,70 +3,173 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3D Clamshell Case Viewer</title>
+  <title>3D Clamshell Case</title>
   <style>
     body {
       margin: 0;
-      overflow: hidden;
-      background: #fff;
+      font-family: sans-serif;
+      background-color: white;
     }
     canvas {
       display: block;
+      width: 100%;
+      height: 100vh;
     }
+    button, input[type="file"], input[type="color"] {
+      position: absolute;
+      left: 20px;
+      padding: 10px;
+      font-size: 14px;
+      z-index: 100;
+    }
+    #toggleLid { top: 20px; }
+    #logoUpload { top: 60px; }
+    #outerColor { top: 100px; }
+    #innerColor { top: 140px; }
   </style>
 </head>
 <body>
+  <button id="toggleLid">Toggle Lid</button>
+  <input type="file" id="logoUpload" accept="image/*" />
+  <input type="color" id="outerColor" value="#444444" title="Outer Color" />
+  <input type="color" id="innerColor" value="#ddcccc" title="Inner Color" />
 
-<script type="module">
-  import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-  import { OrbitControls } from 'https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js';
-  import { GLTFLoader } from 'https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xffffff);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff);
 
-  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 2, 5);
-
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-
-  const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
-  light.position.set(0, 20, 0);
-  scene.add(light);
-
-  const loader = new GLTFLoader();
-  loader.load(
-    'https://raw.githubusercontent.com/ahfareed/custom-case-/main/case.glb',
-    (gltf) => {
-      const model = gltf.scene;
-      model.scale.set(1, 1, 1);
-      scene.add(model);
-    },
-    undefined,
-    (error) => {
-      console.error('Error loading model:', error);
-    }
-  );
-
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+    document.body.appendChild(renderer.domElement);
 
-  const animate = () => {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-  };
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 5, 5).normalize();
+    scene.add(dirLight);
 
-  animate();
-</script>
+    let outerColor = 0x444444;
+    let innerColor = 0xddcccc;
 
+    const createMaterials = () => ([
+      new THREE.MeshStandardMaterial({ color: outerColor }),
+      new THREE.MeshStandardMaterial({ color: outerColor }),
+      new THREE.MeshStandardMaterial({ color: innerColor }),
+      new THREE.MeshStandardMaterial({ color: outerColor }),
+      new THREE.MeshStandardMaterial({ color: outerColor }),
+      new THREE.MeshStandardMaterial({ color: outerColor })
+    ]);
+
+    const createLidMaterials = () => ([
+      new THREE.MeshStandardMaterial({ color: outerColor }),
+      new THREE.MeshStandardMaterial({ color: outerColor }),
+      new THREE.MeshStandardMaterial({ color: outerColor }),
+      new THREE.MeshStandardMaterial({ color: innerColor }),
+      new THREE.MeshStandardMaterial({ color: outerColor }),
+      new THREE.MeshStandardMaterial({ color: outerColor })
+    ]);
+
+    const caseBaseGeometry = new THREE.BoxGeometry(3, 1, 2);
+    const caseBase = new THREE.Mesh(caseBaseGeometry, createMaterials());
+    caseBase.position.y = -0.5;
+
+    const lidGeometry = new THREE.BoxGeometry(3, 0.5, 2);
+    const lidMesh = new THREE.Mesh(lidGeometry, createLidMaterials());
+
+    const lidPivot = new THREE.Object3D();
+    lidPivot.position.set(0, 0.25, -1);
+    lidMesh.position.set(0, 0, 1);
+    lidPivot.add(lidMesh);
+
+    // 🆕 Create a group for rotating both base and lid
+    const caseGroup = new THREE.Group();
+    caseGroup.add(caseBase);
+    caseGroup.add(lidPivot);
+    scene.add(caseGroup);
+
+    camera.position.set(0, 2, 5);
+    camera.lookAt(0, 0, 0);
+
+    let lidOpen = false;
+    const ANIMATION_SPEED = 0.1;
+    const MAX_ROTATION = Math.PI / 2;
+
+    document.getElementById('toggleLid').addEventListener('click', () => {
+      lidOpen = !lidOpen;
+    });
+
+    let logoTexture;
+    document.getElementById('logoUpload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        const image = new Image();
+        image.onload = function () {
+          logoTexture = new THREE.Texture(image);
+          logoTexture.needsUpdate = true;
+          lidMesh.material[2].map = logoTexture;
+          lidMesh.material[2].needsUpdate = true;
+        };
+        image.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const updateColors = () => {
+      outerColor = new THREE.Color(document.getElementById("outerColor").value).getHex();
+      innerColor = new THREE.Color(document.getElementById("innerColor").value).getHex();
+
+      caseBase.material.forEach((mat, i) => {
+        mat.color.setHex(i === 2 ? innerColor : outerColor);
+        mat.needsUpdate = true;
+      });
+
+      lidMesh.material.forEach((mat, i) => {
+        if (i === 2 && logoTexture) return;
+        mat.color.setHex(i === 3 ? innerColor : outerColor);
+        mat.needsUpdate = true;
+      });
+    };
+
+    document.getElementById('outerColor').addEventListener('input', updateColors);
+    document.getElementById('innerColor').addEventListener('input', updateColors);
+
+    // 🆕 Mouse-based rotation
+    let isMouseDown = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    renderer.domElement.addEventListener('mousedown', (event) => {
+      isMouseDown = true;
+      previousMousePosition = { x: event.clientX, y: event.clientY };
+    });
+
+    renderer.domElement.addEventListener('mouseup', () => {
+      isMouseDown = false;
+    });
+
+    renderer.domElement.addEventListener('mousemove', (event) => {
+      if (!isMouseDown) return;
+
+      const deltaX = event.clientX - previousMousePosition.x;
+      const deltaY = event.clientY - previousMousePosition.y;
+
+      caseGroup.rotation.y += deltaX * 0.005;
+      caseGroup.rotation.x += deltaY * 0.005; // flip direction to feel natural
+
+      previousMousePosition = { x: event.clientX, y: event.clientY };
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const target = lidOpen ? -MAX_ROTATION : 0;
+      lidPivot.rotation.x += (target - lidPivot.rotation.x) * ANIMATION_SPEED;
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
 </body>
 </html>
